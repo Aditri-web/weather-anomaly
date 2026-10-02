@@ -120,8 +120,8 @@ def main():
             noise = torch.randn_like(residual_target)
 
             # Add noise to residual
-            sqrt_alpha = model.sampler.sqrt_alphas_cumprod[t].view(b, 1, 1, 1).to(device)
-            sqrt_one_minus = model.sampler.sqrt_one_minus_alphas_cumprod[t].view(b, 1, 1, 1).to(device)
+            sqrt_alpha = model.sampler.sqrt_alphas_cumprod.to(device)[t].view(b, 1, 1, 1)
+            sqrt_one_minus = model.sampler.sqrt_one_minus_alphas_cumprod.to(device)[t].view(b, 1, 1, 1)
             noisy_residual = sqrt_alpha * residual_target + sqrt_one_minus * noise
 
             pred_noise = model.residual_diffusion(noisy_residual, t, cond)

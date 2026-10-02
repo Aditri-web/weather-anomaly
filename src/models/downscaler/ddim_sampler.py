@@ -9,9 +9,10 @@ import torch.nn as nn
 import numpy as np
 
 
-class DDIMSampler:
+class DDIMSampler(nn.Module):
     """
     DDIM Sampler implementing linear or cosine beta schedules.
+    Inherits nn.Module so buffers move with the parent model to GPU/CPU.
     """
 
     def __init__(
@@ -21,18 +22,18 @@ class DDIMSampler:
         beta_end: float = 0.02,
         device: str = "cpu",
     ):
+        super().__init__()
         self.num_train_timesteps = num_train_timesteps
-        self.device = device
 
-        betas = torch.linspace(beta_start, beta_end, num_train_timesteps, dtype=torch.float32, device=device)
+        betas = torch.linspace(beta_start, beta_end, num_train_timesteps, dtype=torch.float32)
         alphas = 1.0 - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
 
-        self.betas = betas
-        self.alphas = alphas
-        self.alphas_cumprod = alphas_cumprod
-        self.sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
+        self.register_buffer("betas", betas)
+        self.register_buffer("alphas", alphas)
+        self.register_buffer("alphas_cumprod", alphas_cumprod)
+        self.register_buffer("sqrt_alphas_cumprod", torch.sqrt(alphas_cumprod))
+        self.register_buffer("sqrt_one_minus_alphas_cumprod", torch.sqrt(1.0 - alphas_cumprod))
 
     def sample(
         self,
