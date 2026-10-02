@@ -1,0 +1,28 @@
+# Stage 1 Spherical GNN Tracker Configuration
+model:
+  in_channels: 5           # (efi, mean_precip, spread_precip, q90_precip, static_orography)
+  hidden_dim: 64
+  num_processor_layers: 4  # K message-passing layers
+  mesh_refinement: 2       # Level 2 icosahedron (162 spherical nodes)
+
+activation:
+  name: "leaky_relu"
+  negative_slope: 0.1      # Configurable negative slope strictly used everywhere
+
+tracking:
+  prob_threshold: 0.5
+  min_area_pixels: 4
+  max_dist_deg: 4.0
+  margin_deg: 1.5
+
+loss:
+  w_focal: 1.0
+  w_dice: 1.0
+  w_center: 0.5
+
+training:
+  batch_size: 4
+  learning_rate: 0.0005
+  num_epochs: 10
+  checkpoint_interval: 2
+  device: "cpu"            # Auto-detects 'cuda' on GPU/Kaggle

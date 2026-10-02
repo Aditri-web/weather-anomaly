@@ -1,0 +1,11 @@
+# End-to-End Inference Pipeline Configuration
+cycle: "2026-10-02T00Z"
+data_config: "configs/data.yaml"
+tracker_config: "configs/tracker.yaml"
+downscaler_config: "configs/downscaler.yaml"
+alerts_config: "configs/alerts.yaml"
+
+lead_times_hours: [72, 96, 120, 144, 168]  # Day 3 to Day 7
+
+output_dir: "data/outputs/cycles"
+save_visualizations: true

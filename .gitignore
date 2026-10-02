@@ -1,0 +1,22 @@
+# Python & Virtual Environments
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pytest & IDE
+.pytest_cache/
+.DS_Store
+.vscode/
+.idea/
+
+# Data & Model Weights
+data/raw/
+data/interim/
+data/processed/
+data/outputs/
+models/checkpoints/
+
+# DVC & Cache
+.dvc/cache/
