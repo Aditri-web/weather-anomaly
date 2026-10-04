@@ -100,11 +100,49 @@ async function startServer() {
     res.json(results);
   });
 
-  // 8. Pipeline Execution Simulation
-  app.post('/v1/pipeline/run', (req: Request, res: Response) => {
-    const { cycle } = req.body || {};
-    const result = runSyntheticForecastPipeline(cycle);
-    res.json(result);
+  // 8. Pipeline Execution Simulation Stream (Server-Sent Events)
+  app.get('/v1/pipeline/stream', (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    
+    const cycle = req.query.cycle || "unknown";
+    const steps = [
+        { name: "Stage 0: 30-Year ERA5 EFI Ingestion", detail: "Evaluating Extreme Forecast Index tail quantile differences across 51 members" },
+        { name: "Stage 1: Spherical Icosahedral Mesh GNN", detail: "Message-passing graph convolutions on geodesic spherical coordinates" },
+        { name: "Stage 2: Conditional CorrDiff Residual Diffusion", detail: "Executing 25-step DDIM sampler preserving extreme localized amplitudes" },
+        { name: "Stage 3: Physical Conservation Invariants", detail: "Verifying aggregation mass conservation and moisture flux divergence" },
+        { name: "Stage 4: Geodesic 5 km Warning Cartography", detail: "Generating 32-point polygon core geometries and tiered advisory bulletins" },
+    ];
+    
+    res.write(`data: ${JSON.stringify({ type: 'log', message: `[Pipeline] Ingesting NEPS-G 12 km operational forecast cycle ${cycle}...` })}\n\n`);
+    
+    let i = 0;
+    
+    const processStep = () => {
+      if (i >= steps.length) {
+        res.write(`data: ${JSON.stringify({ type: 'log', message: '[Pipeline] Full forecast cycle completed! Bulletins synchronized to REST API.' })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'complete' })}\n\n`);
+        res.end();
+        return;
+      }
+      
+      const step = steps[i];
+      res.write(`data: ${JSON.stringify({ type: 'step', step: i })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: 'log', message: `[${step.name}] Processing: ${step.detail}` })}\n\n`);
+      
+      setTimeout(() => {
+        res.write(`data: ${JSON.stringify({ type: 'log', message: `[${step.name}] Verified and completed.` })}\n\n`);
+        i++;
+        processStep();
+      }, 650);
+    };
+    
+    processStep();
+
+    req.on('close', () => {
+      res.end();
+    });
   });
 
   // === STATIC / VITE MIDDLEWARE ===
