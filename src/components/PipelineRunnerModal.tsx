@@ -30,30 +30,45 @@ export const PipelineRunnerModal: React.FC<PipelineRunnerModalProps> = ({
     { name: 'Stage 4: Geodesic 5 km Warning Cartography', detail: 'Generating 32-point polygon core geometries and tiered advisory bulletins' },
   ];
 
-  const handleStart = async () => {
+  const handleStart = () => {
     setRunning(true);
-    setLogMessages(['[Pipeline] Ingesting NEPS-G 12 km operational forecast cycle...']);
+    setLogMessages([]);
+    setCurrentStep(0);
 
-    for (let i = 0; i < steps.length; i++) {
-      setCurrentStep(i);
-      setLogMessages(prev => [...prev, `[${steps[i].name}] Processing: ${steps[i].detail}`]);
-      await new Promise(r => setTimeout(r, 650));
-      setLogMessages(prev => [...prev, `[${steps[i].name}] Verified and completed.`]);
-    }
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/v1/pipeline/ws`;
+    
+    const ws = new WebSocket(wsUrl);
 
-    try {
-      await fetch('/v1/pipeline/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycle: '2026-10-02T00Z' }),
-      });
-    } catch (e) {
-      console.error(e);
-    }
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ cycle: '2026-10-02T00Z' }));
+    };
 
-    setLogMessages(prev => [...prev, '[Pipeline] Full forecast cycle completed! Bulletins synchronized to REST API.']);
-    setRunning(false);
-    onRunComplete();
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'log') {
+        setLogMessages(prev => [...prev, data.message]);
+      } else if (data.type === 'step') {
+        setCurrentStep(data.step);
+      } else if (data.type === 'complete') {
+        setCurrentStep(5);
+        setRunning(false);
+        onRunComplete();
+        ws.close();
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket Error: ', error);
+      setLogMessages(prev => [...prev, '[Error] WebSocket connection failed. Falling back...']);
+      setRunning(false);
+    };
+    
+    ws.onclose = () => {
+      if (running) {
+        setRunning(false);
+      }
+    };
   };
 
   return (
