@@ -35,16 +35,9 @@ export const PipelineRunnerModal: React.FC<PipelineRunnerModalProps> = ({
     setLogMessages([]);
     setCurrentStep(0);
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/v1/pipeline/ws`;
-    
-    const ws = new WebSocket(wsUrl);
+    const evtSource = new EventSource('/v1/pipeline/stream?cycle=2026-10-02T00Z');
 
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ cycle: '2026-10-02T00Z' }));
-    };
-
-    ws.onmessage = (event) => {
+    evtSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'log') {
         setLogMessages(prev => [...prev, data.message]);
@@ -54,20 +47,15 @@ export const PipelineRunnerModal: React.FC<PipelineRunnerModalProps> = ({
         setCurrentStep(5);
         setRunning(false);
         onRunComplete();
-        ws.close();
+        evtSource.close();
       }
     };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket Error: ', error);
-      setLogMessages(prev => [...prev, '[Error] WebSocket connection failed. Falling back...']);
+    evtSource.onerror = (error) => {
+      console.error('SSE Error: ', error);
+      setLogMessages(prev => [...prev, '[Error] Stream connection failed. Falling back...']);
       setRunning(false);
-    };
-    
-    ws.onclose = () => {
-      if (running) {
-        setRunning(false);
-      }
+      evtSource.close();
     };
   };
 

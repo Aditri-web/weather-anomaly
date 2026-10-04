@@ -212,35 +212,32 @@ def query_alerts(query: AlertQueryRequest):
         results.append(alert)
     return results
 
-@app.websocket("/v1/pipeline/ws")
-async def pipeline_ws(websocket: WebSocket):
-    await websocket.accept()
-    
-    steps = [
-        {"name": "Stage 0: 30-Year ERA5 EFI Ingestion", "detail": "Evaluating Extreme Forecast Index tail quantile differences across 51 members"},
-        {"name": "Stage 1: Spherical Icosahedral Mesh GNN", "detail": "Message-passing graph convolutions on geodesic spherical coordinates"},
-        {"name": "Stage 2: Conditional CorrDiff Residual Diffusion", "detail": "Executing 25-step DDIM sampler preserving extreme localized amplitudes"},
-        {"name": "Stage 3: Physical Conservation Invariants", "detail": "Verifying aggregation mass conservation and moisture flux divergence"},
-        {"name": "Stage 4: Geodesic 5 km Warning Cartography", "detail": "Generating 32-point polygon core geometries and tiered advisory bulletins"},
-    ]
-    
-    try:
-        data = await websocket.receive_json()
-        cycle = data.get("cycle", "unknown")
+from fastapi.responses import StreamingResponse
+import json
+
+@app.get("/v1/pipeline/stream")
+async def pipeline_stream(cycle: str = "unknown"):
+    async def event_generator():
+        steps = [
+            {"name": "Stage 0: 30-Year ERA5 EFI Ingestion", "detail": "Evaluating Extreme Forecast Index tail quantile differences across 51 members"},
+            {"name": "Stage 1: Spherical Icosahedral Mesh GNN", "detail": "Message-passing graph convolutions on geodesic spherical coordinates"},
+            {"name": "Stage 2: Conditional CorrDiff Residual Diffusion", "detail": "Executing 25-step DDIM sampler preserving extreme localized amplitudes"},
+            {"name": "Stage 3: Physical Conservation Invariants", "detail": "Verifying aggregation mass conservation and moisture flux divergence"},
+            {"name": "Stage 4: Geodesic 5 km Warning Cartography", "detail": "Generating 32-point polygon core geometries and tiered advisory bulletins"},
+        ]
         
-        await websocket.send_json({"type": "log", "message": f"[Pipeline] Ingesting NEPS-G 12 km operational forecast cycle {cycle}..."})
+        yield f"data: {json.dumps({'type': 'log', 'message': f'[Pipeline] Ingesting NEPS-G 12 km operational forecast cycle {cycle}...'})}\n\n"
         
         for i, step in enumerate(steps):
-            await websocket.send_json({"type": "step", "step": i})
-            await websocket.send_json({"type": "log", "message": f"[{step['name']}] Processing: {step['detail']}"})
+            yield f"data: {json.dumps({'type': 'step', 'step': i})}\n\n"
+            yield f"data: {json.dumps({'type': 'log', 'message': f'[{step['name']}] Processing: {step['detail']}'})}\n\n"
             
             await asyncio.sleep(0.65)
             
-            await websocket.send_json({"type": "log", "message": f"[{step['name']}] Verified and completed."})
+            yield f"data: {json.dumps({'type': 'log', 'message': f'[{step['name']}] Verified and completed.'})}\n\n"
             
-        await websocket.send_json({"type": "log", "message": "[Pipeline] Full forecast cycle completed! Bulletins synchronized to REST API."})
-        await websocket.send_json({"type": "complete"})
+        yield f"data: {json.dumps({'type': 'log', 'message': '[Pipeline] Full forecast cycle completed! Bulletins synchronized to REST API.'})}\n\n"
+        yield f"data: {json.dumps({'type': 'complete'})}\n\n"
         
-    except WebSocketDisconnect:
-        pass
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
