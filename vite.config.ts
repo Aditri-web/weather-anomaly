@@ -11,7 +11,10 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/health': 'http://localhost:8000',
-      '/v1': 'http://localhost:8000'
+      '/v1': {
+        target: 'http://localhost:8000',
+        ws: true
+      }
     }
   },
 });
