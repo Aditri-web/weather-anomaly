@@ -14,13 +14,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
-COPY requirements.txt /app/
+COPY backend-requirements.txt /app/
 
 # Install dependencies. 
 # We specify the CPU-only PyTorch index to significantly reduce the Docker image size
 # (since standard Cloud Run/Railway instances don't have GPUs attached by default).
 RUN pip install --upgrade pip && \
-    pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+    pip install -r backend-requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Copy the rest of the application
 COPY . /app/
