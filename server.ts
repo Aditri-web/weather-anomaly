@@ -111,7 +111,13 @@ async function startServer() {
   if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true, host: '0.0.0.0', port: PORT },
+      server: {
+        middlewareMode: true,
+        host: '0.0.0.0',
+        port: PORT,
+        // The hosted preview proxies HTTP but does not expose Vite's HMR socket.
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
