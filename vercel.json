@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/health",
-      "destination": "https://<YOUR_DEPLOYED_BACKEND_URL>/health"
+      "destination": "https://your-backend.railway.app/health"
     },
     {
       "source": "/v1/:match*",
-      "destination": "https://<YOUR_DEPLOYED_BACKEND_URL>/v1/:match*"
+      "destination": "https://your-backend.railway.app/v1/:match*"
     }
   ]
 }
