@@ -52,7 +52,7 @@ async function startServer() {
 
   // 4. Anomaly Detail
   app.get('/v1/anomalies/:id', (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const anomaly = MOCK_ANOMALIES.find(a => a.track_id.toLowerCase() === id.toLowerCase());
     if (!anomaly) {
       res.status(404).json({ error: `Anomaly track ${id} not found` });
@@ -63,7 +63,7 @@ async function startServer() {
 
   // 5. Downscaled Fields (5 km amplitude-preserving downscaled statistics & matrix)
   app.get('/v1/anomalies/:id/downscaled', (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const leadTimeHours = req.query.lead_time_hours ? parseInt(req.query.lead_time_hours as string, 10) : 96;
     const anomaly = MOCK_ANOMALIES.find(a => a.track_id.toLowerCase() === id.toLowerCase());
 

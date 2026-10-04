@@ -303,7 +303,7 @@ export const generateAnomalyPdfReport = ({
   y += metricsBoxH + 6;
 
   // 6. ACTIVE WARNING BULLETINS (within 5 km radius)
-  const relatedAlerts = alerts.filter(a => a.track_id === anomaly.track_id);
+  const relatedAlerts = alerts.filter(a => a.anomaly_id === anomaly.track_id);
   if (relatedAlerts.length > 0) {
     doc.setFont('times', 'italic');
     doc.setFontSize(13);
