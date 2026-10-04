@@ -28,6 +28,19 @@ class AnomalySummary(BaseModel):
     bbox_with_margin: List[float]
 
 
+class ComparisonData(BaseModel):
+    diffusion_peak: float
+    regression_blurred_peak: float
+    coarse_12km_peak: float
+    power_spectrum_ratio: float
+    physics_conservation_score: float
+
+class GridMatrixPreview(BaseModel):
+    coarse: List[List[float]]
+    downscaled: List[List[float]]
+    lats: List[float]
+    lons: List[float]
+
 class DownscaledResponse(BaseModel):
     anomaly_id: str
     lead_time_hours: int
@@ -38,6 +51,10 @@ class DownscaledResponse(BaseModel):
     max_peak_value: float
     high_impact_area_sqkm: float
     exceedance_threshold_mm: float = 50.0
+    coarse_grid_size: List[int] = [8, 8]
+    downscaled_grid_size: List[int] = [16, 16]
+    comparison_data: Optional[ComparisonData] = None
+    grid_matrix_preview: Optional[GridMatrixPreview] = None
 
 
 class AlertQueryRequest(BaseModel):

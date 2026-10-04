@@ -233,9 +233,9 @@ export const DownscalingInspector: React.FC<DownscalingInspectorProps> = ({ data
                   <span className={`font-mono text-[11px] ${isLight ? 'text-stone-700' : 'text-stone-300'}`}>DDIM-25</span>
                 </div>
 
-                <div className={`aspect-square w-full max-w-[320px] mx-auto grid grid-cols-16 gap-0.5 p-2 border ${
+                <div className={`aspect-square w-full max-w-[320px] mx-auto grid gap-0.5 p-2 border ${
                   isLight ? 'bg-white border-stone-200' : 'bg-[#0c0c0c] border-[#222222]'
-                }`}>
+                }`} style={{ gridTemplateColumns: 'repeat(16, minmax(0, 1fr))' }}>
                   {fineMatrix.map((row, rIdx) =>
                     row.map((val, cIdx) => (
                       <div

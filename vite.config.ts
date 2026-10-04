@@ -9,5 +9,9 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: {
+      '/health': 'http://localhost:8000',
+      '/v1': 'http://localhost:8000'
+    }
   },
 });

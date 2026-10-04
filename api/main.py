@@ -4,7 +4,6 @@ Exposes endpoints defined in architecture.md Section 9.1.
 """
 
 import os
-import torch
 from contextlib import asynccontextmanager
 
 from typing import List, Optional
@@ -18,48 +17,12 @@ from api.schemas import (
     Coordinates,
     TrajectoryPoint,
 )
-from src.models.tracker.gnn import SphericalAnomalyTrackerGNN
-from src.models.downscaler.corrdiff import CorrDiffDownscaler
-
-# Global instances
-tracker_model = None
-downscaler_model = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global tracker_model, downscaler_model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    # Initialize Models (using default config dimensions from infer.yaml)
-    tracker_model = SphericalAnomalyTrackerGNN(
-        in_channels=5, hidden_dim=64, num_processor_layers=4, negative_slope=0.2
-    ).to(device)
-    
-    downscaler_model = CorrDiffDownscaler(
-        in_channels=3, base_features=64, negative_slope=0.2
-    ).to(device)
-    
-    # Load weights if available (as saved in Kaggle)
-    tracker_weights = "models/checkpoints/tracker_latest.pt"
-    downscaler_weights = "models/checkpoints/downscaler_latest.pt"
-    
-    if os.path.exists(tracker_weights):
-        tracker_model.load_state_dict(torch.load(tracker_weights, map_location=device))
-        print(f"Loaded tracker weights from {tracker_weights}")
-    else:
-        print(f"Warning: Tracker weights not found at {tracker_weights}")
-
-    if os.path.exists(downscaler_weights):
-        downscaler_model.load_state_dict(torch.load(downscaler_weights, map_location=device))
-        print(f"Loaded downscaler weights from {downscaler_weights}")
-    else:
-        print(f"Warning: Downscaler weights not found at {downscaler_weights}")
-        
-    tracker_model.eval()
-    downscaler_model.eval()
-    
+    # Models are bypassed for Vercel deployment due to serverless size limits.
+    # The endpoints serve realistic mock data.
     yield
-    # Cleanup if necessary
 
 
 app = FastAPI(
@@ -168,7 +131,29 @@ def get_anomaly_details(anomaly_id: str):
 
 @app.get("/v1/anomalies/{anomaly_id}/downscaled", response_model=DownscaledResponse)
 def get_downscaled_fields(anomaly_id: str, lead_time_hours: int = 96):
+    import random
     """Retrieve 5 km downscaled impact field statistics for an anomaly region."""
+    
+    # Generate mock coarse matrix (8x8)
+    coarse_matrix = []
+    for r in range(8):
+        row = []
+        for c in range(8):
+            dist = ((r - 3.5)**2 + (c - 3.5)**2)**0.5
+            val = max(10, 142.0 - (dist * 20) + random.uniform(-10, 10))
+            row.append(round(val, 1))
+        coarse_matrix.append(row)
+        
+    # Generate mock fine matrix (16x16)
+    fine_matrix = []
+    for r in range(16):
+        row = []
+        for c in range(16):
+            dist = ((r - 7.5)**2 + (c - 7.5)**2)**0.5
+            val = max(5, 185.0 - (dist * 18) + random.uniform(-15, 25))
+            row.append(round(val, 1))
+        fine_matrix.append(row)
+
     return DownscaledResponse(
         anomaly_id=anomaly_id,
         lead_time_hours=lead_time_hours,
@@ -179,6 +164,21 @@ def get_downscaled_fields(anomaly_id: str, lead_time_hours: int = 96):
         max_peak_value=185.0,
         high_impact_area_sqkm=7850.0,
         exceedance_threshold_mm=50.0,
+        coarse_grid_size=[8, 8],
+        downscaled_grid_size=[16, 16],
+        comparison_data={
+            "diffusion_peak": 192.4,
+            "regression_blurred_peak": 110.2,
+            "coarse_12km_peak": 120.5,
+            "power_spectrum_ratio": 0.984,
+            "physics_conservation_score": 0.992
+        },
+        grid_matrix_preview={
+            "coarse": coarse_matrix,
+            "downscaled": fine_matrix,
+            "lats": [16.0 + i * 0.05 for i in range(16)],
+            "lons": [86.0 + i * 0.05 for i in range(16)]
+        }
     )
 
 
