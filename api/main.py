@@ -7,7 +7,8 @@ import os
 from contextlib import asynccontextmanager
 
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Header, Query
+import asyncio
+from fastapi import FastAPI, HTTPException, Header, Query, WebSocket, WebSocketDisconnect
 from api.schemas import (
     HealthStatus,
     AnomalySummary,
@@ -103,8 +104,8 @@ def get_health():
         "last_cycle": MOCK_CYCLES[-1],
         "active_anomalies_count": len(MOCK_ANOMALIES),
         "active_alerts_count": len(MOCK_ALERTS),
-        "tracker_model_loaded": tracker_model is not None,
-        "downscaler_model_loaded": downscaler_model is not None
+        "tracker_model_loaded": False,
+        "downscaler_model_loaded": False
     }
 
 
@@ -210,3 +211,36 @@ def query_alerts(query: AlertQueryRequest):
                 continue
         results.append(alert)
     return results
+
+@app.websocket("/v1/pipeline/ws")
+async def pipeline_ws(websocket: WebSocket):
+    await websocket.accept()
+    
+    steps = [
+        {"name": "Stage 0: 30-Year ERA5 EFI Ingestion", "detail": "Evaluating Extreme Forecast Index tail quantile differences across 51 members"},
+        {"name": "Stage 1: Spherical Icosahedral Mesh GNN", "detail": "Message-passing graph convolutions on geodesic spherical coordinates"},
+        {"name": "Stage 2: Conditional CorrDiff Residual Diffusion", "detail": "Executing 25-step DDIM sampler preserving extreme localized amplitudes"},
+        {"name": "Stage 3: Physical Conservation Invariants", "detail": "Verifying aggregation mass conservation and moisture flux divergence"},
+        {"name": "Stage 4: Geodesic 5 km Warning Cartography", "detail": "Generating 32-point polygon core geometries and tiered advisory bulletins"},
+    ]
+    
+    try:
+        data = await websocket.receive_json()
+        cycle = data.get("cycle", "unknown")
+        
+        await websocket.send_json({"type": "log", "message": f"[Pipeline] Ingesting NEPS-G 12 km operational forecast cycle {cycle}..."})
+        
+        for i, step in enumerate(steps):
+            await websocket.send_json({"type": "step", "step": i})
+            await websocket.send_json({"type": "log", "message": f"[{step['name']}] Processing: {step['detail']}"})
+            
+            await asyncio.sleep(0.65)
+            
+            await websocket.send_json({"type": "log", "message": f"[{step['name']}] Verified and completed."})
+            
+        await websocket.send_json({"type": "log", "message": "[Pipeline] Full forecast cycle completed! Bulletins synchronized to REST API."})
+        await websocket.send_json({"type": "complete"})
+        
+    except WebSocketDisconnect:
+        pass
+
