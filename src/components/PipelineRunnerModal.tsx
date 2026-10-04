@@ -33,39 +33,49 @@ export const PipelineRunnerModal: React.FC<PipelineRunnerModalProps> = ({
   const handleStart = () => {
     setRunning(true);
     setLogMessages([]);
-    setCurrentStep(0);
+    setCurrentStep(-1); // -1 = nothing active yet
 
-    // Pipeline simulation runs entirely client-side — no network dependency.
-    // Each stage logs two messages: start + completion, with a spinner delay between them.
-    const pipelineScript: Array<{ step: number; msg: string; delay: number }> = [
-      { step: 0, msg: '[Pipeline] Ingesting NEPS-G 12 km operational forecast cycle 2026-10-02T00Z...', delay: 400 },
-      { step: 0, msg: '[Stage 0: 30-Year ERA5 EFI Ingestion] Processing: Evaluating Extreme Forecast Index tail quantile differences across 51 members', delay: 800 },
-      { step: 0, msg: '[Stage 0: 30-Year ERA5 EFI Ingestion] Verified and completed.', delay: 500 },
-      { step: 1, msg: '[Stage 1: Spherical Icosahedral Mesh GNN] Processing: Message-passing graph convolutions on geodesic spherical coordinates', delay: 900 },
-      { step: 1, msg: '[Stage 1: Spherical Icosahedral Mesh GNN] Verified and completed.', delay: 500 },
-      { step: 2, msg: '[Stage 2: Conditional CorrDiff Residual Diffusion] Processing: Executing 25-step DDIM sampler preserving extreme localized amplitudes', delay: 1100 },
-      { step: 2, msg: '[Stage 2: Conditional CorrDiff Residual Diffusion] Verified and completed.', delay: 500 },
-      { step: 3, msg: '[Stage 3: Physical Conservation Invariants] Processing: Verifying aggregation mass conservation and moisture flux divergence', delay: 800 },
-      { step: 3, msg: '[Stage 3: Physical Conservation Invariants] Verified and completed.', delay: 500 },
-      { step: 4, msg: '[Stage 4: Geodesic 5 km Warning Cartography] Processing: Generating 32-point polygon core geometries and tiered advisory bulletins', delay: 700 },
-      { step: 4, msg: '[Stage 4: Geodesic 5 km Warning Cartography] Verified and completed.', delay: 400 },
-      { step: 5, msg: '[Pipeline] Full forecast cycle completed! Bulletins synchronized to REST API.', delay: 0 },
+    // Each stage: [stepIndex, startLog, doneLog, activeMs]
+    // activeMs = how long the spinner stays on that stage before marking done
+    const stages: Array<[number, string, string, number]> = [
+      [0, '[Stage 0: 30-Year ERA5 EFI Ingestion] Processing: Evaluating Extreme Forecast Index tail quantile differences across 51 members...', '[Stage 0: 30-Year ERA5 EFI Ingestion] ✓ Verified and completed.', 1800],
+      [1, '[Stage 1: Spherical Icosahedral Mesh GNN] Processing: Message-passing graph convolutions on geodesic spherical coordinates...', '[Stage 1: Spherical Icosahedral Mesh GNN] ✓ Verified and completed.', 2000],
+      [2, '[Stage 2: Conditional CorrDiff Residual Diffusion] Processing: Executing 25-step DDIM sampler preserving extreme localized amplitudes...', '[Stage 2: Conditional CorrDiff Residual Diffusion] ✓ Verified and completed.', 2500],
+      [3, '[Stage 3: Physical Conservation Invariants] Processing: Verifying aggregation mass conservation and moisture flux divergence...', '[Stage 3: Physical Conservation Invariants] ✓ Verified and completed.', 1800],
+      [4, '[Stage 4: Geodesic 5 km Warning Cartography] Processing: Generating 32-point polygon core geometries and tiered advisory bulletins...', '[Stage 4: Geodesic 5 km Warning Cartography] ✓ Verified and completed.', 1600],
     ];
 
-    let accumulated = 0;
-    pipelineScript.forEach(({ step, msg, delay }, i) => {
+    setLogMessages(prev => [...prev, '[Pipeline] Ingesting NEPS-G 12 km operational forecast cycle 2026-10-02T00Z...']);
+
+    let cursor = 300; // initial delay before stage 0 starts
+
+    stages.forEach(([stepIdx, startLog, doneLog, activeMs]) => {
+      // Mark stage as ACTIVE (spinner on)
       setTimeout(() => {
-        setCurrentStep(step);
-        setLogMessages(prev => [...prev, msg]);
-        if (i === pipelineScript.length - 1) {
-          setTimeout(() => {
-            setRunning(false);
-            onRunComplete();
-          }, 300);
-        }
-      }, accumulated);
-      accumulated += delay;
+        setCurrentStep(stepIdx);
+        setLogMessages(prev => [...prev, startLog]);
+      }, cursor);
+
+      cursor += activeMs; // stage stays active for activeMs
+
+      // Mark stage as DONE (advance step so isDone = true for this idx)
+      setTimeout(() => {
+        setLogMessages(prev => [...prev, doneLog]);
+        setCurrentStep(stepIdx + 1); // +1 makes isDone = (stepIdx+1) > stepIdx = true
+      }, cursor);
+
+      cursor += 400; // brief pause between stages
     });
+
+    // Final completion
+    setTimeout(() => {
+      setLogMessages(prev => [...prev, '[Pipeline] Full forecast cycle completed! Bulletins synchronized to REST API.']);
+      setCurrentStep(5);
+      setTimeout(() => {
+        setRunning(false);
+        onRunComplete();
+      }, 400);
+    }, cursor);
   };
 
   return (
