@@ -3,6 +3,10 @@ FastAPI REST Service for Extreme Weather Anomaly Tracking and Downscaled Alerts.
 Exposes endpoints defined in architecture.md Section 9.1.
 """
 
+import os
+import torch
+from contextlib import asynccontextmanager
+
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException, Header, Query
 from api.schemas import (
@@ -14,11 +18,55 @@ from api.schemas import (
     Coordinates,
     TrajectoryPoint,
 )
+from src.models.tracker.gnn import SphericalAnomalyTrackerGNN
+from src.models.downscaler.corrdiff import CorrDiffDownscaler
+
+# Global instances
+tracker_model = None
+downscaler_model = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global tracker_model, downscaler_model
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    # Initialize Models (using default config dimensions from infer.yaml)
+    tracker_model = SphericalAnomalyTrackerGNN(
+        in_channels=5, hidden_dim=64, num_processor_layers=4, negative_slope=0.2
+    ).to(device)
+    
+    downscaler_model = CorrDiffDownscaler(
+        in_channels=3, base_features=64, negative_slope=0.2
+    ).to(device)
+    
+    # Load weights if available (as saved in Kaggle)
+    tracker_weights = "models/checkpoints/tracker_latest.pt"
+    downscaler_weights = "models/checkpoints/downscaler_latest.pt"
+    
+    if os.path.exists(tracker_weights):
+        tracker_model.load_state_dict(torch.load(tracker_weights, map_location=device))
+        print(f"Loaded tracker weights from {tracker_weights}")
+    else:
+        print(f"Warning: Tracker weights not found at {tracker_weights}")
+
+    if os.path.exists(downscaler_weights):
+        downscaler_model.load_state_dict(torch.load(downscaler_weights, map_location=device))
+        print(f"Loaded downscaler weights from {downscaler_weights}")
+    else:
+        print(f"Warning: Downscaler weights not found at {downscaler_weights}")
+        
+    tracker_model.eval()
+    downscaler_model.eval()
+    
+    yield
+    # Cleanup if necessary
+
 
 app = FastAPI(
     title="Extreme Weather Anomaly Tracking & Downscaling API",
     description="Operational decision-support API serving 5 km amplitude-preserving downscaled guidance and localized alerts.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # In-memory store for serving precomputed cycle outputs
@@ -83,16 +131,18 @@ MOCK_ALERTS = [
 ]
 
 
-@app.get("/health", response_model=HealthStatus)
+@app.get("/health")
 def get_health():
     """Liveness check and system summary."""
-    return HealthStatus(
-        status="healthy",
-        version="0.1.0",
-        last_cycle=MOCK_CYCLES[-1],
-        active_anomalies_count=len(MOCK_ANOMALIES),
-        active_alerts_count=len(MOCK_ALERTS),
-    )
+    return {
+        "status": "healthy",
+        "version": "0.1.0",
+        "last_cycle": MOCK_CYCLES[-1],
+        "active_anomalies_count": len(MOCK_ANOMALIES),
+        "active_alerts_count": len(MOCK_ALERTS),
+        "tracker_model_loaded": tracker_model is not None,
+        "downscaler_model_loaded": downscaler_model is not None
+    }
 
 
 @app.get("/v1/cycles", response_model=List[str])

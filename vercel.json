@@ -1,0 +1,16 @@
+{
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "https://<YOUR_DEPLOYED_BACKEND_URL>/health"
+    },
+    {
+      "source": "/v1/:match*",
+      "destination": "https://<YOUR_DEPLOYED_BACKEND_URL>/v1/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
