@@ -5,8 +5,8 @@
       "destination": "https://your-backend.railway.app/health"
     },
     {
-      "source": "/v1/:match*",
-      "destination": "https://your-backend.railway.app/v1/:match*"
+      "source": "/v1/(.*)",
+      "destination": "https://your-backend.railway.app/v1/$1"
     }
   ]
 }
