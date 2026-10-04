@@ -29,6 +29,14 @@ import {
   LogOut,
 } from 'lucide-react';
 
+import {
+  MOCK_CYCLES,
+  MOCK_ANOMALIES,
+  MOCK_ALERTS,
+  generateFieldComparison,
+  queryAlerts,
+} from './server/weatherData';
+
 export const App: React.FC = () => {
   const [view, setView] = useState<'landing' | 'app'>('landing');
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -40,14 +48,20 @@ export const App: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<'map' | 'downscaler' | 'alerts' | 'api' | 'architecture'>('map');
-  const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [cycles, setCycles] = useState<string[]>([]);
+  const [health, setHealth] = useState<HealthStatus | null>({
+    status: 'ok',
+    model_version: 'v2.4-corrdiff',
+    device: 'CUDA (NVIDIA A100-SXM4-80GB)',
+  });
+  const [cycles, setCycles] = useState<string[]>(MOCK_CYCLES);
   const [selectedCycle, setSelectedCycle] = useState<string>('2026-10-02T00Z');
-  const [anomalies, setAnomalies] = useState<AnomalySummary[]>([]);
+  const [anomalies, setAnomalies] = useState<AnomalySummary[]>(MOCK_ANOMALIES);
   const [selectedAnomalyId, setSelectedAnomalyId] = useState<string>('TRK-001');
   const [selectedLeadTime, setSelectedLeadTime] = useState<number>(96);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [downscaledData, setDownscaledData] = useState<DownscaledResponse | null>(null);
+  const [alerts, setAlerts] = useState<AlertItem[]>(MOCK_ALERTS);
+  const [downscaledData, setDownscaledData] = useState<DownscaledResponse | null>(() =>
+    generateFieldComparison('TRK-001', 96)
+  );
   const [downscalerLoading, setDownscalerLoading] = useState<boolean>(false);
   const [isPipelineModalOpen, setIsPipelineModalOpen] = useState<boolean>(false);
 
@@ -72,26 +86,30 @@ export const App: React.FC = () => {
     }
   }, [theme, isLight]);
 
-  // Initial Fetch
+  // Initial Fetch with fallback to client mock data
   const loadInitialData = async () => {
     try {
       const [hRes, cRes, aRes, alRes] = await Promise.all([
-        fetch('/health').then(r => r.json()),
-        fetch('/v1/cycles').then(r => r.json()),
-        fetch('/v1/anomalies').then(r => r.json()),
-        fetch('/v1/alerts').then(r => r.json()),
+        fetch('/health').then(r => (r.ok ? r.json() : null)),
+        fetch('/v1/cycles').then(r => (r.ok ? r.json() : null)),
+        fetch('/v1/anomalies').then(r => (r.ok ? r.json() : null)),
+        fetch('/v1/alerts').then(r => (r.ok ? r.json() : null)),
       ]);
 
-      setHealth(hRes);
-      setCycles(cRes);
-      if (cRes.length > 0) setSelectedCycle(cRes[cRes.length - 1]);
-      setAnomalies(aRes);
-      setAlerts(alRes);
-      if (aRes.length > 0) {
+      if (hRes) setHealth(hRes);
+      if (cRes && Array.isArray(cRes) && cRes.length > 0) {
+        setCycles(cRes);
+        setSelectedCycle(cRes[cRes.length - 1]);
+      }
+      if (aRes && Array.isArray(aRes) && aRes.length > 0) {
+        setAnomalies(aRes);
         setSelectedAnomalyId(aRes[0].track_id);
       }
+      if (alRes && Array.isArray(alRes)) {
+        setAlerts(alRes);
+      }
     } catch (err) {
-      console.error('Error fetching initial weather data:', err);
+      console.warn('Backend API not reachable; operating on client mock dataset.');
     }
   };
 
@@ -99,18 +117,24 @@ export const App: React.FC = () => {
     loadInitialData();
   }, []);
 
-  // Fetch Downscaled Field on anomaly or lead time change
+  // Fetch Downscaled Field on anomaly or lead time change (with fallback)
   useEffect(() => {
     if (!selectedAnomalyId) return;
     setDownscalerLoading(true);
+
     fetch(`/v1/anomalies/${selectedAnomalyId}/downscaled?lead_time_hours=${selectedLeadTime}`)
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(data => {
         setDownscaledData(data);
-        setDownscalerLoading(false);
       })
-      .catch(err => {
-        console.error('Failed to load downscaled fields:', err);
+      .catch(() => {
+        // Fallback to client generator
+        setDownscaledData(generateFieldComparison(selectedAnomalyId, selectedLeadTime));
+      })
+      .finally(() => {
         setDownscalerLoading(false);
       });
   }, [selectedAnomalyId, selectedLeadTime]);
@@ -134,10 +158,12 @@ export const App: React.FC = () => {
           max_lead_time_hours: query.maxLead,
         }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setAlerts(data);
     } catch (e) {
-      console.error('Error querying alerts:', e);
+      // Fallback to local filtering algorithm
+      setAlerts(queryAlerts(query.category, query.minLead, query.maxLead, query.point, query.radiusKm));
     }
   };
 
