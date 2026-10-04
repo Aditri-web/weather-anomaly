@@ -1,0 +1,33 @@
+# Stage 2 Conditional Residual Diffusion Downscaler Configuration
+model:
+  in_channels: 3           # (interpolated_coarse_log1p, orography, land_sea_mask)
+  base_features: 32
+  num_train_timesteps: 1000
+
+activation:
+  name: "leaky_relu"
+  negative_slope: 0.1      # Configurable negative slope strictly used everywhere
+
+sampling:
+  sampler: "ddim"
+  num_inference_steps: 25  # Fast 25-step DDIM sampling
+  num_samples: 8           # Number of generative realizations
+  exceedance_threshold_mm: 50.0
+
+physics_losses:
+  w_l1: 1.0
+  w_agg: 0.5               # Coarse aggregation consistency
+  w_spectral: 0.2          # 2D Fourier power spectrum loss
+  w_quantile: 0.3          # Tail-weighted upper quantile loss
+  scale_factor: 5          # 5x super-resolution factor
+
+hallucination_guard:
+  relative_tolerance: 0.35
+
+training:
+  batch_size: 4
+  patch_size: 64
+  learning_rate: 0.0002
+  num_epochs: 15
+  checkpoint_interval: 3
+  device: "cpu"            # Auto-detects 'cuda' on GPU/Kaggle

@@ -1,0 +1,14 @@
+# Alert Engine Thresholds Configuration
+# NOTE: Thresholds subject to formal agreement with meteorological domain experts & NDRF
+thresholds:
+  base_mm_day: 35.0        # 'Low' impact threshold (yellow)
+  high_mm_day: 70.0        # 'Moderate' impact threshold (orange)
+  extreme_mm_day: 120.0    # 'Severe' impact threshold (red)
+
+probabilities:
+  prob_low: 0.30           # 30% exceedance probability
+  prob_moderate: 0.40      # 40% exceedance probability
+  prob_severe: 0.50        # 50% exceedance probability
+
+geometry:
+  radius_km: 5.0           # 5 km geodesic core circle

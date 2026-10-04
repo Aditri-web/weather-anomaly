@@ -1,0 +1,8 @@
+{
+  "name": "Extreme Weather Anomaly Tracking & Downscaler",
+  "description": "Extreme weather anomaly tracking, 5 km amplitude-preserving downscaled guidance, and hyper-local early warning alerts.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
