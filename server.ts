@@ -20,7 +20,10 @@ async function startServer() {
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
   const isProduction = process.env.NODE_ENV === 'production';
 
-  app.use(cors());
+  app.use(cors({
+    origin: true, // reflect request origin - allows Vercel, localhost, and any other origin
+    credentials: true,
+  }));
   app.use(express.json());
 
   // === REST API ENDPOINTS (conforming to architecture.md & api/main.py) ===
@@ -102,9 +105,15 @@ async function startServer() {
 
   // 8. Pipeline Execution Simulation Stream (Server-Sent Events)
   app.get('/v1/pipeline/stream', (req: Request, res: Response) => {
+    // Explicit CORS headers for EventSource (SSE) - needed because browsers
+    // handle EventSource cross-origin differently from fetch
+    const origin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
     
     const cycle = req.query.cycle || "unknown";
     const steps = [
